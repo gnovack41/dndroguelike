@@ -1,4 +1,4 @@
-import {H3Event} from "h3";
+import { H3Event } from 'h3';
 
 
 export async function useSerializer<T>(
@@ -7,7 +7,9 @@ export async function useSerializer<T>(
 ): Promise<T> {
     const result = await readValidatedBody(event, body => serializer.safeParse(body));
 
-    if (!result) throw result.error.issues;
+    console.log(result);
+
+    if (!result.data) throw result.error.issues;
 
     return result.data as T;
 }
