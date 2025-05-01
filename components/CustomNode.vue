@@ -14,8 +14,8 @@
     <Handle v-if="!data.isOrigin" :position="Position.Top" type="target"/>
     <div class="flex flex-col justify-center gap-1">
         <p v-if="data.isOrigin" class="text-sm text-center">Start</p>
-        <div class="bg-emerald-500 rounded-full py-3 px-4">
-            <UIcon v-if="data.icon" :name="data.icon"/>
+        <div class="bg-blue-400 rounded-full py-3 px-4">
+            <UIcon v-if="data.icon" :name="data.icon" class="text-black"/>
         </div>
     </div>
     <Handle :position="Position.Bottom" type="source"/>

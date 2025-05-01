@@ -7,5 +7,4 @@ export const userSelectSchema = createSelectSchema(user);
 
 export const userInsertSchema = createInsertSchema(user, {
     ...baseModelSerializerFields,
-    email: (schema) => schema.email('Must be a valid email'),
 });
