@@ -50,12 +50,8 @@ export function useAsyncState<T, E = any>(
 
     const state = reactive<AsyncState<T>>({ ...startingState, retry: () => undefined });
 
-    state.retry = () => {
-        Object.assign(state, startingState);
-
-        state.promise = promiseFn();
-
-        return state.promise.then(
+    function executePromise(p: Promise<T>) {
+        return p.then(
             (value) => {
                 state.result = value as UnwrapRef<T>;
                 state.isPending = false;
@@ -67,20 +63,17 @@ export function useAsyncState<T, E = any>(
                 state.isRejected = true;
             },
         );
+    }
+
+    state.retry = () => {
+        Object.assign(state, startingState);
+
+        state.promise = promiseFn();
+
+        return executePromise(state.promise);
     };
 
-    promise.then(
-        (value: T) => {
-            state.result = value as UnwrapRef<T>;
-            state.isPending = false;
-            state.isFulfilled = true;
-        },
-        (error) => {
-            state.error = handleError(error);
-            state.isPending = false;
-            state.isRejected = true;
-        },
-    );
+    executePromise(promise);
 
     return state;
 }

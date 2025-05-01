@@ -44,7 +44,7 @@
 
     const saveMapState = ref();
 
-    async function saveMap() {
+    function saveMap() {
         const payload = {
             details: {
                 name: mapRequest.data.value!.name,
@@ -72,7 +72,7 @@
         );
     }
 
-    function addNode(icon: string) {
+    async function addNode(icon: string) {
         vueFlow.addNodes({
             id: (Math.floor(Math.random() * 1000)).toString(),
             position: {
@@ -83,20 +83,26 @@
             type: 'custom'
         });
 
+        await nextTick();
+
         saveMap();
     }
 
-    vueFlow.onNodeDoubleClick(event => {
+    vueFlow.onNodeDoubleClick(async event => {
         vueFlow.removeNodes(event.node.id);
+
+        await nextTick();
 
         saveMap();
     });
 
-    vueFlow.onConnect(({ source, target }) => {
+    vueFlow.onConnect(async ({ source, target }) => {
         vueFlow.addEdges({
             source: source,
             target: target,
         });
+
+        await nextTick();
 
         saveMap();
     });
