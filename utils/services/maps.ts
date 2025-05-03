@@ -3,7 +3,7 @@ export type Node = {
     map_id: number,
     created_at: string,
     modified_at: string,
-    type: string,
+    icon: string,
     position_x: number,
     position_y: number,
 }

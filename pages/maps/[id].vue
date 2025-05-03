@@ -32,7 +32,7 @@
                 y: node.position_y,
             },
             type: 'custom',
-            data: { icon: `lucide:${ node.type }` }
+            data: { icon: node.icon },
         }));
 
         edges.value = map.edges.map((edge: any) => ({
@@ -54,7 +54,7 @@
                 id: Number(node.id),
                 position_x: node.position.x,
                 position_y: node.position.y,
-                type: 'apple',
+                icon: node.data.icon,
                 map_id: Number(mapId),
             })),
             edges: edges.value.map(edge => ({
@@ -68,7 +68,7 @@
             $fetch<Map>(`/api/maps/${ mapId }`, {
                 method: 'post',
                 body: payload,
-            })
+            }),
         );
     }
 
@@ -80,7 +80,7 @@
                 y: 200,
             },
             data: { icon },
-            type: 'custom'
+            type: 'custom',
         });
 
         await nextTick();
@@ -110,9 +110,26 @@
     vueFlow.onNodeDragStop(() => saveMap());
 
     const nodeIcons = [
-        'lucide:apple',
-        'lucide:anvil',
-        'lucide:anchor',
+        'mdi:sword-cross',
+        'mdi:treasure-chest',
+        'mdi:door',
+        'mdi:key',
+        'mdi:skull',
+        'mdi:fire',
+        'mdi:water',
+        'mdi:mountain',
+        'mdi:tree',
+        'mdi:meteor',
+        'mdi:ghost',
+        'mdi:eye',
+        'mdi:map-marker',
+        'mdi:campfire',
+        'mdi:flask-round-bottom',
+        'mdi:lightning-bolt',
+        'mdi:pickaxe',
+        'mdi:shield',
+        'mdi:stairs-up',
+        'mdi:stairs-down',
     ];
 </script>
 
@@ -120,8 +137,11 @@
     <VueFlow v-model:edges="edges" v-model:nodes="nodes">
         <Background/>
         <Panel position="top-center">
-            <div class="flex gap-4 items-center">
-                <UButton label="Back to Maps" @click="router.push(`/users/${mapRequest.data.value.created_by_id}`)"/>
+            <UButton label="Back to Maps" @click="router.push(`/users/${mapRequest.data.value.created_by_id}`)"/>
+        </Panel>
+
+        <Panel position="top-left">
+            <div class="grid grid-rows-10 grid-cols-2 gap-4 items-center">
                 <UButton v-for="icon in nodeIcons" :key="icon" color="neutral" @click="addNode(icon)">
                     <UIcon :name="icon" size="30"/>
                 </UButton>

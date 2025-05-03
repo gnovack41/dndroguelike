@@ -15,13 +15,14 @@ export default defineEventHandler(async (event) => {
 
     await Promise.all([
         drizzle.update(tables.map).set(completeMap.details).where(eq(tables.map.id, Number(id))),
-        drizzle.insert(tables.node).values(completeMap.nodes).onConflictDoUpdate({
+        completeMap.nodes.length ? drizzle.insert(tables.node).values(completeMap.nodes).onConflictDoUpdate({
             target: tables.node.id,
             set: {
-                position_x: sql.raw(`excluded.position_x`),
-                position_y: sql.raw(`excluded.position_y`),
+                position_x: sql.raw('excluded.position_x'),
+                position_y: sql.raw('excluded.position_y'),
+                icon: sql.raw('excluded.icon'),
             },
-        }),
+        }) : null,
         completeMap.edges.length ? drizzle.insert(tables.edge).values(completeMap.edges).onConflictDoNothing({ target: tables.edge.id }) : undefined,
         drizzle.delete(tables.node).where(and(
             eq(tables.node.map_id, Number(id)),

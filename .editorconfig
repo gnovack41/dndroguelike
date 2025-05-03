@@ -11,3 +11,5 @@ insert_final_newline = true
 [*.{js,ts,cjs,vue}]
 indent_style = space
 indent_size = 4
+ij_javascript_enforce_trailing_comma = whenmultiline
+ij_typescript_enforce_trailing_comma  = whenmultiline

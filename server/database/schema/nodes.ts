@@ -7,9 +7,9 @@ import { edge } from './edges';
 
 export const node = sqliteTable('node', {
     ...baseModel,
-    position_x: integer(),
-    position_y: integer(),
-    type: text({ enum: ['anchor', 'apple', 'anvil'] }),
+    position_x: integer().notNull(),
+    position_y: integer().notNull(),
+    icon: text().notNull(),
     map_id: integer().references(() => map.id, { onDelete: 'cascade' }).notNull(),
 });
 
