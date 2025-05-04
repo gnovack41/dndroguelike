@@ -23,10 +23,17 @@ export default defineEventHandler(async (event) => {
                 icon: sql.raw('excluded.icon'),
             },
         }) : null,
-        completeMap.edges.length ? drizzle.insert(tables.edge).values(completeMap.edges).onConflictDoNothing({ target: tables.edge.id }) : undefined,
+        drizzle.delete(tables.edge).where(and(
+            eq(tables.edge.map_id, Number(id)),
+            notInArray(tables.edge.id, completeMap.edges.filter(e => e.id !== undefined).map(e => e.id)),
+        )),
+        completeMap.edges.length ? drizzle.insert(tables.edge).values(completeMap.edges.map(e => ({
+            ...e,
+            map_id: Number(id),
+        }))).onConflictDoNothing({ target: tables.edge.id }) : undefined,
         drizzle.delete(tables.node).where(and(
             eq(tables.node.map_id, Number(id)),
-            notInArray(tables.node.id, completeMap.nodes.map(n => n.id))
+            notInArray(tables.node.id, completeMap.nodes.map(n => n.id)),
         )),
     ]);
 

@@ -2,23 +2,29 @@ import { integer, sqliteTable } from 'drizzle-orm/sqlite-core';
 import { baseModel } from './utils';
 import { node } from './nodes';
 import { relations } from 'drizzle-orm';
+import { map } from './maps';
 
 
 export const edge = sqliteTable('edge', {
     ...baseModel,
     source_id: integer().references(() => node.id, { onDelete: 'cascade' }).notNull(),
     target_id: integer().references(() => node.id, { onDelete: 'cascade' }).notNull(),
+    map_id: integer().references(() => map.id, { onDelete: 'cascade' }).notNull(),
 });
 
 export const edgeRelations = relations(edge, ({ one }) => ({
     source: one(node, {
         fields: [edge.source_id],
         references: [node.id],
-        relationName: 'source,'
+        relationName: 'source,',
     }),
     target: one(node, {
         fields: [edge.target_id],
         references: [node.id],
         relationName: 'target',
-    })
+    }),
+    map: one(map, {
+        fields: [edge.map_id],
+        references: [map.id],
+    }),
 }));

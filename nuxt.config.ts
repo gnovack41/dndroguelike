@@ -12,10 +12,17 @@ export default defineNuxtConfig({
       '@nuxt/ui',
       '@nuxthub/core',
       'nuxt-auth-utils',
+      '@vueuse/nuxt',
     ],
     css: ['~/assets/css/main.css', '~/assets/css/tailwind.css'],
     hub: {
-        database: true
+        database: true,
+        workers: true,
+    },
+    nitro: {
+        experimental: {
+            websocket: true,
+        },
     },
     ssr: false,
     debug: true,

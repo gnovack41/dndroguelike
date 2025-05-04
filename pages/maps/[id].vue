@@ -11,10 +11,26 @@
 
     const mapId = route.params.id;
 
+    const { open, close, send } = useWebSocket(`/api/ws/players/${ mapId }`, {
+        onMessage: (ws, event) => {
+            try {
+                const mapData = JSON.parse(event.data);
+
+                populateNodesAndEdgesFromMap(mapData);
+            } catch {
+                console.log(event.data);
+            }
+        },
+    });
+
+    onUnmounted(() => close());
+
     const vueFlow = useVueFlow();
 
     const nodes = ref<Node[]>([]);
     const edges = ref<Edge[]>([]);
+
+    const isDungeonMaster = ref(false);
 
     const mapRequest = await useFetch(`/api/maps/${ mapId }`, {
         method: 'get',
@@ -36,7 +52,7 @@
         }));
 
         edges.value = map.edges.map((edge: any) => ({
-            id: edge.id,
+            id: edge.id ?? `${ edge.source_id }->${ edge.target_id }`,
             source: edge.source_id.toString(),
             target: edge.target_id.toString(),
         }));
@@ -52,8 +68,8 @@
             },
             nodes: nodes.value.map(node => ({
                 id: Number(node.id),
-                position_x: node.position.x,
-                position_y: node.position.y,
+                position_x: Math.round(node.position.x),
+                position_y: Math.round(node.position.y),
                 icon: node.data.icon,
                 map_id: Number(mapId),
             })),
@@ -70,9 +86,13 @@
                 body: payload,
             }),
         );
+
+        send(JSON.stringify(payload));
     }
 
     async function addNode(icon: string) {
+        if (!isDungeonMaster.value) return;
+
         vueFlow.addNodes({
             id: (Math.floor(Math.random() * 1000)).toString(),
             position: {
@@ -89,6 +109,8 @@
     }
 
     vueFlow.onNodeDoubleClick(async event => {
+        if (!isDungeonMaster.value) return;
+
         vueFlow.removeNodes(event.node.id);
 
         await nextTick();
@@ -96,7 +118,19 @@
         saveMap();
     });
 
+    vueFlow.onEdgeDoubleClick(async event => {
+        if (!isDungeonMaster.value) return;
+
+        vueFlow.removeEdges(event.edge.id.toString());
+
+        await nextTick();
+
+        saveMap();
+    });
+
     vueFlow.onConnect(async ({ source, target }) => {
+        if (!isDungeonMaster.value) return;
+
         vueFlow.addEdges({
             source: source,
             target: target,
@@ -131,16 +165,40 @@
         'mdi:stairs-up',
         'mdi:stairs-down',
     ];
+
+    const openSelectRoleModal = ref(true);
 </script>
 
 <template>
-    <VueFlow v-model:edges="edges" v-model:nodes="nodes">
+    <UModal
+        v-model:open="openSelectRoleModal"
+        :close="false"
+        :dismissible="false"
+        title="I am a..."
+    >
+        <template #body>
+            <div class="flex gap-4">
+                <UButton
+                    label="Dungeon Master"
+                    size="lg"
+                    @click="isDungeonMaster = true; openSelectRoleModal = false;"
+                />
+                <UButton label="Player" size="lg" @click="openSelectRoleModal = false"/>
+            </div>
+        </template>
+    </UModal>
+    <VueFlow
+        v-model:edges="edges"
+        v-model:nodes="nodes"
+        :nodes-connectable="isDungeonMaster"
+        :nodes-draggable="isDungeonMaster"
+    >
         <Background/>
         <Panel position="top-center">
             <UButton label="Back to Maps" @click="router.push(`/users/${mapRequest.data.value.created_by_id}`)"/>
         </Panel>
 
-        <Panel position="top-left">
+        <Panel v-if="isDungeonMaster" position="top-left">
             <div class="grid grid-rows-10 grid-cols-2 gap-4 items-center">
                 <UButton v-for="icon in nodeIcons" :key="icon" color="neutral" @click="addNode(icon)">
                     <UIcon :name="icon" size="30"/>

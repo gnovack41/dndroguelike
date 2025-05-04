@@ -23,7 +23,7 @@
                 },
                 nodes: [],
                 edges: [],
-            }
+            },
         }).then(async res => await router.push(`/maps/${ res.id }`)));
     }
 </script>

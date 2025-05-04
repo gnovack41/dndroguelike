@@ -3,6 +3,7 @@ import { baseModel } from './utils';
 import { user } from './users';
 import { relations } from 'drizzle-orm';
 import { node } from './nodes';
+import { edge } from './edges';
 
 
 export const map = sqliteTable('map', {
@@ -17,4 +18,5 @@ export const mapRelations = relations(map, ({ one, many }) => ({
         references: [user.id],
     }),
     nodes: many(node),
+    edges: many(edge),
 }));

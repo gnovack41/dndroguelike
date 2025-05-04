@@ -1,0 +1,1 @@
+ALTER TABLE `edge` ADD `map_id` integer NOT NULL REFERENCES map(id);
