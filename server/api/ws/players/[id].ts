@@ -1,6 +1,6 @@
 function getTopicFromUrl(url: string): string {
     const urlParts = url.split('/');
-    const mapId = Number(urlParts[urlParts.length - 1]);
+    const mapId = urlParts[urlParts.length - 1];
 
     return `MAP ${ mapId }`;
 }

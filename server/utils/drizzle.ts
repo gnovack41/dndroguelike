@@ -7,7 +7,4 @@ export function useDrizzle() {
     return drizzle(hubDatabase(), { schema });
 }
 
-export type User = typeof tables.user.$inferSelect;
-export type Map = typeof tables.map.$inferSelect;
-export type Node = typeof tables.node.$inferSelect;
-export type Edge = typeof tables.edge.$inferSelect;
+export type Session = typeof tables.sessions.$inferSelect;

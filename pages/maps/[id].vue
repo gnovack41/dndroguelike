@@ -3,42 +3,83 @@
     import CustomNode from '~/components/CustomNode.vue';
     import { MiniMap } from '@vue-flow/minimap';
     import { Background } from '@vue-flow/background';
-    import { useAsyncState } from '../../utils/services';
     import type { Map } from '../../utils/services/maps';
+    import { type AsyncState, useAsyncState } from '../../utils/services';
+    import { v4 } from 'uuid';
+    import { PLAYER_JOINED_MESSAGE } from '../../utils';
 
     const route = useRoute();
     const router = useRouter();
 
-    const mapId = route.params.id;
+    const mapId = route.params.id as string;
+
+    const sessionJoined = ref(false);
+
+    const showPlayerJoinedMessage = ref(false);
+
+    let playerJoinedTimeout: NodeJS.Timeout | null = null;
+
+    function triggerPlayerJoinedMessage() {
+        if (playerJoinedTimeout) {
+            clearTimeout(playerJoinedTimeout);
+        }
+
+        showPlayerJoinedMessage.value = true;
+
+        setTimeout(() => {
+            showPlayerJoinedMessage.value = false;
+        }, 1000);
+    }
 
     const { open, close, send } = useWebSocket(`/api/ws/players/${ mapId }`, {
         onMessage: (ws, event) => {
-            try {
-                const mapData = JSON.parse(event.data);
+            if (event.data === PLAYER_JOINED_MESSAGE) triggerPlayerJoinedMessage();
 
-                populateNodesAndEdgesFromMap(mapData);
-            } catch {
-                console.log(event.data);
+            if (isDungeonMaster.value) {
+                if (event.data === PLAYER_JOINED_MESSAGE) {
+                    saveMap();
+                }
+            } else {
+                try {
+                    const mapData = JSON.parse(event.data);
+
+                    populateNodesAndEdgesFromMap(mapData);
+
+                    sessionJoined.value = true;
+                } catch {
+                    console.log(event.data);
+                }
             }
         },
     });
 
-    onUnmounted(() => close());
+    onBeforeMount(() => {
+        if (isDungeonMaster.value) return;
+
+        send(PLAYER_JOINED_MESSAGE);
+    });
+
+
+    onBeforeUnmount(() => close());
 
     const vueFlow = useVueFlow();
 
     const nodes = ref<Node[]>([]);
     const edges = ref<Edge[]>([]);
 
-    const isDungeonMaster = ref(false);
+    const isDungeonMaster = ref(true);
 
-    const mapRequest = await useFetch(`/api/maps/${ mapId }`, {
-        method: 'get',
-    }).then((res) => {
-        populateNodesAndEdgesFromMap(res.data.value as Map);
+    const mapData = localStorage.getItem(mapId);
+    let map: Map | null = null;
 
-        return res;
-    });
+    if (mapData) {
+        map = JSON.parse(mapData) as Map;
+        populateNodesAndEdgesFromMap(map);
+
+        sessionJoined.value = true;
+    } else {
+        isDungeonMaster.value = false;
+    }
 
     function populateNodesAndEdgesFromMap(map: Map) {
         nodes.value = map.nodes.map((node: any) => ({
@@ -58,36 +99,25 @@
         }));
     }
 
-    const saveMapState = ref();
-
     function saveMap() {
-        const payload = {
-            details: {
-                name: mapRequest.data.value!.name,
-                created_by_id: mapRequest.data.value!.created_by_id,
-            },
+        const payload = JSON.stringify({
+            name: map!.name,
             nodes: nodes.value.map(node => ({
-                id: Number(node.id),
+                id: node.id,
                 position_x: Math.round(node.position.x),
                 position_y: Math.round(node.position.y),
                 icon: node.data.icon,
-                map_id: Number(mapId),
             })),
             edges: edges.value.map(edge => ({
-                id: isNaN(Number(edge.id)) ? undefined : Number(edge.id),
+                id: edge.id,
                 source_id: Number(edge.source),
                 target_id: Number(edge.target),
             })),
-        };
+        });
 
-        saveMapState.value = useAsyncState(() =>
-            $fetch<Map>(`/api/maps/${ mapId }`, {
-                method: 'post',
-                body: payload,
-            }),
-        );
+        send(payload);
 
-        send(JSON.stringify(payload));
+        localStorage.setItem(mapId, payload);
     }
 
     async function addNode(icon: string) {
@@ -166,28 +196,31 @@
         'mdi:stairs-down',
     ];
 
-    const openSelectRoleModal = ref(true);
+    const startSessionState = ref<AsyncState<string>>();
+
+    function startSession() {
+        let userId = localStorage.getItem('user_id');
+        if (!userId) {
+            userId = v4();
+            localStorage.setItem('user_id', userId);
+        }
+
+        startSessionState.value = useAsyncState<string>(() => $fetch(
+            '/api/sessions',
+            { method: 'post', body: { map_id: mapId, created_by_id: userId } },
+        ));
+    }
 </script>
 
 <template>
-    <UModal
-        v-model:open="openSelectRoleModal"
-        :close="false"
-        :dismissible="false"
-        title="I am a..."
-    >
-        <template #body>
-            <div class="flex gap-4">
-                <UButton
-                    label="Dungeon Master"
-                    size="lg"
-                    @click="isDungeonMaster = true; openSelectRoleModal = false;"
-                />
-                <UButton label="Player" size="lg" @click="openSelectRoleModal = false"/>
-            </div>
-        </template>
-    </UModal>
+    <div v-if="!sessionJoined" class="flex justify-center items-center w-full h-full gap-4">
+        <div class="flex flex-col items-center gap-4">
+            <UIcon class="animate-spin" name="gg:spinner" size="60"/>
+            <p>Joining Session...</p>
+        </div>
+    </div>
     <VueFlow
+        v-else
         v-model:edges="edges"
         v-model:nodes="nodes"
         :nodes-connectable="isDungeonMaster"
@@ -195,7 +228,7 @@
     >
         <Background/>
         <Panel position="top-center">
-            <UButton label="Back to Maps" @click="router.push(`/users/${mapRequest.data.value.created_by_id}`)"/>
+            <UButton label="Back to Maps" @click="router.push(`/maps`)"/>
         </Panel>
 
         <Panel v-if="isDungeonMaster" position="top-left">
@@ -206,12 +239,18 @@
             </div>
         </Panel>
 
-        <Panel v-if="saveMapState?.isPending" class="flex flex-col gap-1" position="top-right">
-            <UIcon class="animate-spin" name="gg:spinner" size="40"/>
-            <p class="text-sm">Saving...</p>
+        <Panel class="flex flex-col gap-1" position="top-right">
+            <template v-if="isDungeonMaster">
+                <UButton :loading="startSessionState?.isPending" label="Start Session" @click="startSession"/>
+                <p v-if="startSessionState?.result">Access Code: {{ startSessionState?.result }}</p>
+            </template>
+
+            <Transition mode="out-in" name="fade">
+                <p v-if="showPlayerJoinedMessage">New Player Joined!</p>
+            </Transition>
         </Panel>
 
-        <MiniMap mask-color="#202020" node-stroke-width="20" pannable zoomable/>
+        <MiniMap :node-stroke-width="20" mask-color="#202020" pannable zoomable/>
 
         <template #node-custom="customNodeProps">
             <CustomNode v-bind="customNodeProps"/>
