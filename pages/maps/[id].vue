@@ -32,7 +32,7 @@
     }
 
     const { open, close, send } = useWebSocket(`/api/ws/players/${ mapId }`, {
-        onMessage: (ws, event) => {
+        onMessage: async (ws, event) => {
             if (event.data === PLAYER_JOINED_MESSAGE) triggerPlayerJoinedMessage();
 
             if (isDungeonMaster.value) {
@@ -43,7 +43,7 @@
                 try {
                     const mapData = JSON.parse(event.data);
 
-                    populateNodesAndEdgesFromMap(mapData);
+                    await populateNodesAndEdgesFromMap(mapData);
 
                     sessionJoined.value = true;
                 } catch {
@@ -74,14 +74,14 @@
 
     if (mapData) {
         map = JSON.parse(mapData) as Map;
-        populateNodesAndEdgesFromMap(map);
+        await populateNodesAndEdgesFromMap(map);
 
         sessionJoined.value = true;
     } else {
         isDungeonMaster.value = false;
     }
 
-    function populateNodesAndEdgesFromMap(map: Map) {
+    async function populateNodesAndEdgesFromMap(map: Map) {
         nodes.value = map.nodes.map((node: any) => ({
             id: node.id.toString(),
             position: {
@@ -89,8 +89,10 @@
                 y: node.position_y,
             },
             type: 'custom',
-            data: { icon: node.icon },
+            data: { icon: node.icon, explored: node.explored, isOrigin: node.isOrigin },
         }));
+
+        await nextTick();
 
         edges.value = map.edges.map((edge: any) => ({
             id: edge.id ?? `${ edge.source_id }->${ edge.target_id }`,
@@ -100,24 +102,50 @@
     }
 
     function saveMap() {
-        const payload = JSON.stringify({
+        const storagePayload = JSON.stringify({
             name: map!.name,
             nodes: nodes.value.map(node => ({
                 id: node.id,
                 position_x: Math.round(node.position.x),
                 position_y: Math.round(node.position.y),
                 icon: node.data.icon,
+                explored: node.data.explored,
+                isOrigin: node.data.isOrigin,
             })),
             edges: edges.value.map(edge => ({
+                id: edge.id,
+                source_id: edge.source,
+                target_id: edge.target,
+            })),
+        });
+
+        const exploredNodes = nodes.value.filter(n => n.data.explored);
+        const exploredNodeIds = exploredNodes.map(n => n.id);
+
+        const accessibleEdges = edges.value.filter(e => [e.target, e.source].some(id => exploredNodeIds.includes(id)));
+        const accessibleNodes = nodes.value.filter(
+            n => n.data.explored || accessibleEdges.some(e => [e.target, e.source].includes(n.id)));
+
+        const playerPayload = JSON.stringify({
+            name: map!.name,
+            nodes: accessibleNodes.map(node => ({
+                id: node.id,
+                position_x: Math.round(node.position.x),
+                position_y: Math.round(node.position.y),
+                icon: node.data.icon,
+                explored: node.data.explored,
+                isOrigin: node.data.isOrigin,
+            })),
+            edges: accessibleEdges.map(edge => ({
                 id: edge.id,
                 source_id: Number(edge.source),
                 target_id: Number(edge.target),
             })),
         });
 
-        send(payload);
+        send(playerPayload);
 
-        localStorage.setItem(mapId, payload);
+        localStorage.setItem(mapId, storagePayload);
     }
 
     async function addNode(icon: string) {
@@ -129,7 +157,7 @@
                 x: Math.round(window.innerWidth / 2),
                 y: 200,
             },
-            data: { icon },
+            data: { icon, explored: nodes.value.length === 0, isOrigin: nodes.value.length === 0 },
             type: 'custom',
         });
 
@@ -210,6 +238,16 @@
             { method: 'post', body: { map_id: mapId, created_by_id: userId } },
         ));
     }
+
+    function setNodeExplored(id: string) {
+        const node = nodes.value.find(n => n.id === id);
+
+        if (!node) return;
+
+        node.data.explored = !node.data.explored;
+
+        saveMap();
+    }
 </script>
 
 <template>
@@ -253,7 +291,7 @@
         <MiniMap :node-stroke-width="20" mask-color="#202020" pannable zoomable/>
 
         <template #node-custom="customNodeProps">
-            <CustomNode v-bind="customNodeProps"/>
+            <CustomNode v-bind="customNodeProps" @explored="setNodeExplored($event)"/>
         </template>
     </VueFlow>
 </template>

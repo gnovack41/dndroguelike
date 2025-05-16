@@ -22,6 +22,12 @@
             <UFormField label="Access Code">
                 <UInput v-model="accessCode" :disabled="submitState?.isPending" class="w-full" maxlength="6" required/>
             </UFormField>
+            <UAlert
+                v-if="submitState?.isRejected && submitState.error.data.statusCode === 400"
+                color="error"
+                description="Please update it and try again"
+                title="Invalid Access Code"
+            />
             <UButton :loading="submitState?.isPending" label="Submit" type="submit"/>
         </form>
     </div>
