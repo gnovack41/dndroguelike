@@ -25,7 +25,7 @@ export default defineNuxtConfig({
         cloudflare: {
             deployConfig: true,
         },
-        preset: 'cloudflare_durable',
+        preset: 'cloudflare_pages',
     },
     ssr: false,
     debug: true,
