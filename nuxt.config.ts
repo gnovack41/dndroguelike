@@ -8,7 +8,6 @@ export default defineNuxtConfig({
         '@nuxt/eslint',
         '@nuxt/icon',
         '@nuxt/image',
-        '@nuxt/test-utils',
         '@nuxt/ui',
         '@nuxthub/core',
         '@vueuse/nuxt',
@@ -24,10 +23,10 @@ export default defineNuxtConfig({
         },
     },
     nitro: {
+        compatibilityDate: '2024-11-01',
         experimental: {
             websocket: true,
         },
-        preset: 'cloudflare_pages',
         cloudflare: {
             deployConfig: true,
             nodeCompat: true,

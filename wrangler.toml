@@ -1,8 +1,0 @@
-name = "nuxt-cloudflare-app"
-main = "./.output/server/index.mjs"
-compatibility_date = "2024-11-01"
-type = "javascript"
-
-[site]
-bucket = ".output/public"
-entry-point = "."

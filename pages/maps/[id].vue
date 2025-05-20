@@ -152,7 +152,6 @@
                 source_id: Number(edge.source),
                 target_id: Number(edge.target),
             })),
-            user_id: userId,
         });
 
         send(playerPayload);
@@ -249,29 +248,6 @@
 
         saveMap();
     }
-
-    const nodeIcons = [
-        'mdi:sword-cross',
-        'mdi:treasure-chest',
-        'mdi:door',
-        'mdi:key',
-        'mdi:skull',
-        'mdi:fire',
-        'mdi:water',
-        'mdi:mountain',
-        'mdi:tree',
-        'mdi:meteor',
-        'mdi:ghost',
-        'mdi:eye',
-        'mdi:map-marker',
-        'mdi:campfire',
-        'mdi:flask-round-bottom',
-        'mdi:lightning-bolt',
-        'mdi:pickaxe',
-        'mdi:shield',
-        'mdi:stairs-up',
-        'mdi:stairs-down',
-    ];
 
     const combatIcons = [
         'mdi:sword-cross',
