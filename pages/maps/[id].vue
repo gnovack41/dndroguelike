@@ -13,6 +13,14 @@
 
     const mapId = route.params.id as string;
 
+    const CUSTOM_ICONS_KEY = 'custom_icons';
+
+    let userId = localStorage.getItem('user_id');
+    if (!userId) {
+        userId = v4();
+        localStorage.setItem('user_id', userId);
+    }
+
     const sessionJoined = ref(false);
 
     const showPlayerJoinedMessage = ref(false);
@@ -51,10 +59,13 @@
                 }
             }
         },
+        immediate: false,
     });
 
     onBeforeMount(() => {
         if (isDungeonMaster.value) return;
+
+        open();
 
         send(PLAYER_JOINED_MESSAGE);
     });
@@ -141,6 +152,7 @@
                 source_id: Number(edge.source),
                 target_id: Number(edge.target),
             })),
+            user_id: userId,
         });
 
         send(playerPayload);
@@ -201,6 +213,43 @@
 
     vueFlow.onNodeDragStop(() => saveMap());
 
+    const startSessionState = ref<AsyncState<string>>();
+
+    const activeSession = ref(false);
+
+    function startSession() {
+        startSessionState.value = useAsyncState<string>(() => $fetch(
+            '/api/sessions',
+            { method: 'post', body: { map_id: mapId, created_by_id: userId } },
+        ).then((res) => {
+            open();
+
+            activeSession.value = true;
+
+            return res;
+        }));
+    }
+
+    function closeSession() {
+        close();
+
+        activeSession.value = false;
+    }
+
+    async function copySessionLink() {
+        await window.navigator.clipboard.writeText(window.location.href);
+    }
+
+    function setNodeExplored(id: string) {
+        const node = nodes.value.find(n => n.id === id);
+
+        if (!node) return;
+
+        node.data.explored = !node.data.explored;
+
+        saveMap();
+    }
+
     const nodeIcons = [
         'mdi:sword-cross',
         'mdi:treasure-chest',
@@ -224,29 +273,59 @@
         'mdi:stairs-down',
     ];
 
-    const startSessionState = ref<AsyncState<string>>();
+    const combatIcons = [
+        'mdi:sword-cross',
+        'mdi:shield',
+        'mdi:skull',
+        'mdi:axe-battle',
+        'mdi:lightning-bolt',
+        'mdi:fire',
+        'mdi:arrow-right-bold',
+        'mdi:bomb',
+        'mdi:dagger',
+        'mdi:bow-arrow',
+    ];
 
-    function startSession() {
-        let userId = localStorage.getItem('user_id');
-        if (!userId) {
-            userId = v4();
-            localStorage.setItem('user_id', userId);
-        }
+    const shoppingIcons = [
+        'mdi:treasure-chest',
+        'mdi:coin',
+        'mdi:bag-personal',
+        'mdi:scale-balance',
+        'mdi:store',
+        'mdi:cart',
+        'mdi:diamond-stone',
+        'mdi:scroll',
+        'mdi:gold',
+        'mdi:cash',
+    ];
 
-        startSessionState.value = useAsyncState<string>(() => $fetch(
-            '/api/sessions',
-            { method: 'post', body: { map_id: mapId, created_by_id: userId } },
-        ));
-    }
+    const encounterIcons = [
+        'mdi:map-marker',
+        'mdi:campfire',
+        'mdi:door',
+        'mdi:key',
+        'mdi:eye',
+        'mdi:ghost',
+        'mdi:mountain',
+        'mdi:tree',
+        'mdi:water',
+        'mdi:meteor',
+    ];
 
-    function setNodeExplored(id: string) {
-        const node = nodes.value.find(n => n.id === id);
+    const iconGroups = [
+        { name: 'Combat', icons: combatIcons },
+        { name: 'Shopping', icons: shoppingIcons },
+        { name: 'Encounters', icons: encounterIcons },
+    ];
 
-        if (!node) return;
+    const customIcons = ref<string[]>(JSON.parse(localStorage.getItem(CUSTOM_ICONS_KEY) ?? '[]'));
 
-        node.data.explored = !node.data.explored;
+    const newIconName = ref();
 
-        saveMap();
+    function updateCustomIcons() {
+        customIcons.value.push(newIconName.value);
+
+        localStorage.setItem(CUSTOM_ICONS_KEY, JSON.stringify(customIcons.value));
     }
 </script>
 
@@ -269,18 +348,59 @@
             <UButton label="Back to Maps" @click="router.push(`/maps`)"/>
         </Panel>
 
-        <Panel v-if="isDungeonMaster" position="top-left">
-            <div class="grid grid-rows-10 grid-cols-2 gap-4 items-center">
-                <UButton v-for="icon in nodeIcons" :key="icon" color="neutral" @click="addNode(icon)">
-                    <UIcon :name="icon" size="30"/>
-                </UButton>
+        <Panel v-if="isDungeonMaster" class="flex flex-col gap-6 max-h-[90%] w-28 overflow-y-scroll"
+               position="top-left">
+            <div v-for="group in iconGroups" :key="group.name" class="flex flex-col gap-2">
+                <h3 class="font-semibold">{{ group.name }} </h3>
+
+                <div class="grid grid-rows-5 grid-cols-2 gap-4 items-center">
+                    <UButton v-for="icon in group.icons" :key="icon" class="aspect-square flex justify-center"
+                             color="neutral"
+                             @click="addNode(icon)">
+                        <UIcon :name="icon" size="30"/>
+                    </UButton>
+                </div>
             </div>
+
+            <form class="flex flex-col gap-2" @submit.prevent="updateCustomIcons">
+                <h3 class="font-semibold">Custom</h3>
+
+                <div class="grid grid-cols-2 gap-4 items-center">
+                    <UButton v-for="icon in customIcons" :key="icon" class="aspect-square flex justify-center"
+                             color="neutral"
+                             @click="addNode(icon)">
+                        <UIcon :name="icon" size="30"/>
+                    </UButton>
+                </div>
+
+                <UFormField label="Iconify Name">
+                    <UInput v-model="newIconName" required/>
+                </UFormField>
+
+                <UButton label="Add" type="submit"/>
+            </form>
+
         </Panel>
 
-        <Panel class="flex flex-col gap-1" position="top-right">
+        <Panel class="flex flex-col gap-1 w-40" position="top-right">
             <template v-if="isDungeonMaster">
-                <UButton :loading="startSessionState?.isPending" label="Start Session" @click="startSession"/>
-                <p v-if="startSessionState?.result">Access Code: {{ startSessionState?.result }}</p>
+                <UButton
+                    :label="activeSession ? 'Close Session' : 'Start Session'"
+                    :loading="startSessionState?.isPending"
+                    class="w-full"
+                    @click="activeSession ? closeSession() : startSession()"
+                />
+                <UAlert v-if="startSessionState?.isRejected" color="error" description="Please try again later"
+                        title="An error occurred"/>
+                <template v-else-if="startSessionState?.result && activeSession">
+                    <p>Access Code: {{ startSessionState?.result }}</p>
+                    <UButton
+                        class="w-full"
+                        color="neutral"
+                        label="Copy Share Link"
+                        @click="copySessionLink"
+                    />
+                </template>
             </template>
 
             <Transition mode="out-in" name="fade">
