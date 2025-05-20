@@ -22,6 +22,7 @@ export default defineNuxtConfig({
         experimental: {
             websocket: true,
         },
+        preset: 'cloudflare_durable',
     },
     ssr: false,
     debug: true,

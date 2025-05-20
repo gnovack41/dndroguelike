@@ -36,6 +36,7 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250520.0",
     "drizzle-kit": "^0.31.0",
     "vue-tsc": "^2.2.8",
     "wrangler": "^4.13.1"
