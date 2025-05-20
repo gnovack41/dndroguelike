@@ -17,10 +17,20 @@ export default defineNuxtConfig({
     hub: {
         database: true,
         workers: true,
+        bindings: {
+            observability: {
+                logs: true,
+            },
+        },
     },
     nitro: {
         experimental: {
             websocket: true,
+        },
+        preset: 'cloudflare_pages',
+        cloudflare: {
+            deployConfig: true,
+            nodeCompat: true,
         },
     },
     ssr: false,
