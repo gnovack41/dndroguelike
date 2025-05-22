@@ -47,12 +47,12 @@
         onMessage: async (ws, event) => {
             const eventData = JSON.parse(event.data);
 
-            if ([PLAYER_JOINED_MESSAGE, PLAYER_LEFT_MESSAGE].includes(eventData.type)) {
+            if (eventData.type === PLAYER_JOINED_MESSAGE) {
                 currentPlayerCount.value = eventData.player_count;
 
-                if (eventData.type === PLAYER_JOINED_MESSAGE) {
-                    triggerPlayerJoinedMessage();
-                }
+                triggerPlayerJoinedMessage();
+            } else if (eventData.type === PLAYER_LEFT_MESSAGE) {
+                currentPlayerCount.value = eventData.player_count - 1;
             }
 
             if (isDungeonMaster.value) {
@@ -415,7 +415,7 @@
 
 
             <Transition mode="out-in" name="fade">
-                <p v-if="showPlayerJoinedMessage">New Player Joined!</p>
+                <p v-if="showPlayerJoinedMessage" class="text-center">New Player Joined!</p>
             </Transition>
         </Panel>
 
