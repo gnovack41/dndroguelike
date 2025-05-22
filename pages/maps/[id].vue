@@ -295,7 +295,7 @@
         'mdi:door',
         'mdi:key',
         'mdi:eye',
-        'mdi:ghost',
+        'mdi:question-mark',
         'mdi:mountain',
         'mdi:tree',
         'mdi:water',
