@@ -6,7 +6,8 @@
     import type { Map } from '../../utils/services/maps';
     import { type AsyncState, useAsyncState } from '../../utils/services';
     import { v4 } from 'uuid';
-    import { PLAYER_JOINED_MESSAGE } from '../../utils';
+    import { PLAYER_JOINED_MESSAGE, PLAYER_LEFT_MESSAGE } from '../../utils';
+    import { Controls } from '@vue-flow/controls';
 
     const route = useRoute();
     const router = useRouter();
@@ -22,6 +23,7 @@
     }
 
     const sessionJoined = ref(false);
+    const sessionEnded = ref(false);
 
     const showPlayerJoinedMessage = ref(false);
 
@@ -39,22 +41,34 @@
         }, 1000);
     }
 
+    const currentPlayerCount = ref(0);
+
     const { open, close, send } = useWebSocket(`/api/ws/players/${ mapId }`, {
         onMessage: async (ws, event) => {
-            if (event.data === PLAYER_JOINED_MESSAGE) triggerPlayerJoinedMessage();
+            const eventData = JSON.parse(event.data);
+
+            if ([PLAYER_JOINED_MESSAGE, PLAYER_LEFT_MESSAGE].includes(eventData.type)) {
+                currentPlayerCount.value = eventData.player_count;
+
+                if (eventData.type === PLAYER_JOINED_MESSAGE) {
+                    triggerPlayerJoinedMessage();
+                }
+            }
 
             if (isDungeonMaster.value) {
-                if (event.data === PLAYER_JOINED_MESSAGE) {
+                if (eventData.type === PLAYER_JOINED_MESSAGE) {
                     saveMap();
                 }
             } else {
                 try {
-                    const mapData = JSON.parse(event.data);
-
-                    await populateNodesAndEdgesFromMap(mapData);
+                    await populateNodesAndEdgesFromMap(eventData);
 
                     sessionJoined.value = true;
                 } catch {
+                    if (eventData.type === SESSION_ENDED) {
+                        sessionEnded.value = true;
+                    }
+
                     console.log(event.data);
                 }
             }
@@ -66,8 +80,6 @@
         if (isDungeonMaster.value) return;
 
         open();
-
-        send(PLAYER_JOINED_MESSAGE);
     });
 
 
@@ -212,6 +224,8 @@
 
     vueFlow.onNodeDragStop(() => saveMap());
 
+    vueFlow.onSelectionDragStop(() => saveMap());
+
     const startSessionState = ref<AsyncState<string>>();
 
     const activeSession = ref(false);
@@ -312,12 +326,23 @@
             <p>Joining Session...</p>
         </div>
     </div>
+    <div v-else-if="sessionEnded" class="flex justify-center items-center w-full h-full gap-4">
+        <div class="flex flex-col items-center gap-4">
+            <UIcon name="gg:smile-sad" size="60"/>
+            <p>Session Ended</p>
+            <UButton icon="gg:home-alt" label="Home" @click="router.push(`/`)"/>
+        </div>
+    </div>
     <VueFlow
         v-else
         v-model:edges="edges"
         v-model:nodes="nodes"
+        :connection-radius="20"
+        :elements-selectable="isDungeonMaster"
         :nodes-connectable="isDungeonMaster"
         :nodes-draggable="isDungeonMaster"
+        connect-on-click
+        fit-view-on-init
     >
         <Background/>
         <Panel position="top-center">
@@ -366,25 +391,37 @@
                     class="w-full"
                     @click="activeSession ? closeSession() : startSession()"
                 />
-                <UAlert v-if="startSessionState?.isRejected" color="error" description="Please try again later"
-                        title="An error occurred"/>
-                <template v-else-if="startSessionState?.result && activeSession">
-                    <p>Access Code: {{ startSessionState?.result }}</p>
-                    <UButton
-                        class="w-full"
-                        color="neutral"
-                        label="Copy Share Link"
-                        @click="copySessionLink"
+                <Transition mode="out-in" name="fade">
+                    <UAlert
+                        v-if="startSessionState?.isRejected"
+                        color="error"
+                        description="Please try again later"
+                        title="An error occurred"
                     />
-                </template>
+                    <div v-else-if="startSessionState?.result && activeSession" class="flex flex-col gap-2">
+                        <p>Access Code: {{ startSessionState?.result }}</p>
+                        <UButton
+                            class="w-full"
+                            color="neutral"
+                            label="Copy Share Link"
+                            @click="copySessionLink"
+                        />
+                        <p class="font-medium text-center">
+                            Num Players: {{ Math.max(currentPlayerCount - 1, 0) }}
+                        </p>
+                    </div>
+                </Transition>
             </template>
+
 
             <Transition mode="out-in" name="fade">
                 <p v-if="showPlayerJoinedMessage">New Player Joined!</p>
             </Transition>
         </Panel>
 
-        <MiniMap :node-stroke-width="20" mask-color="#202020" pannable zoomable/>
+        <MiniMap :node-stroke-width="20" class="rounded-md overflow-clip" mask-color="#202020" pannable zoomable/>
+
+        <Controls class="flex rounded-md overflow-clip" position="bottom-center"/>
 
         <template #node-custom="customNodeProps">
             <CustomNode v-bind="customNodeProps" @explored="setNodeExplored($event)"/>
@@ -393,9 +430,9 @@
 </template>
 
 <style scoped>
-@reference 'tailwindcss';
+    @reference 'tailwindcss';
 
-.vue-flow__minimap {
-    @apply bg-gray-600;
-}
+    .vue-flow__minimap {
+        @apply bg-gray-600;
+    }
 </style>
