@@ -421,7 +421,7 @@
 
         <MiniMap :node-stroke-width="20" class="rounded-md overflow-clip" mask-color="#202020" pannable zoomable/>
 
-        <Controls class="flex rounded-md overflow-clip" position="bottom-center"/>
+        <Controls class="flex rounded-md overflow-clip" position="bottom-center" :show-interactive="isDungeonMaster"/>
 
         <template #node-custom="customNodeProps">
             <CustomNode v-bind="customNodeProps" @explored="setNodeExplored($event)"/>
