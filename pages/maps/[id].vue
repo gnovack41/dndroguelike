@@ -73,12 +73,10 @@
     let intervalAutosaveTimeout: NodeJS.Timeout | null = null;
 
     function intervalAutoSave() {
-        if (!activeSession.value) return;
+        intervalAutosaveTimeout = setInterval(() => {
+            if (!activeSession.value) return;
 
-        intervalAutosaveTimeout = setTimeout(() => {
             saveMap();
-
-            intervalAutoSave();
         }, AUTOSAVE_INTERVAL_MS);
     }
 
