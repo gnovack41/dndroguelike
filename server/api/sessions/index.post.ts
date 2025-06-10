@@ -5,10 +5,7 @@ import { generateRandomString } from '../../../utils';
 export default defineEventHandler(async (event) => {
     const sessionData = await readValidatedBody(
         event,
-        body => z.object({
-            map_id: z.string(),
-            created_by_id: z.string(),
-        }).parse(body),
+        body => z.object({ map_id: z.string() }).parse(body),
     );
 
     const newSession = (
@@ -16,7 +13,6 @@ export default defineEventHandler(async (event) => {
             .insert(tables.sessions).values({
                 id: sessionData.map_id,
                 access_code: generateRandomString(6),
-                created_by_id: sessionData.created_by_id,
                 created_at: new Date(),
                 modified_at: new Date(),
             })

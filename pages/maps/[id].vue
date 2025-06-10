@@ -3,10 +3,10 @@
     import CustomNode from '~/components/CustomNode.vue';
     import { MiniMap } from '@vue-flow/minimap';
     import { Background } from '@vue-flow/background';
-    import type { Map } from '../../utils/services/maps';
-    import { type AsyncState, useAsyncState } from '../../utils/services';
+    import type {Map, MapEdge, MapNode} from '~/utils/services/maps';
+    import { type AsyncState, useAsyncState } from '~/utils/services';
     import { v4 } from 'uuid';
-    import { PLAYER_JOINED_MESSAGE, PLAYER_LEFT_MESSAGE } from '../../utils';
+    import { PLAYER_JOINED_MESSAGE, PLAYER_LEFT_MESSAGE } from '~/utils';
     import { Controls } from '@vue-flow/controls';
 
     const route = useRoute();
@@ -16,11 +16,7 @@
 
     const CUSTOM_ICONS_KEY = 'custom_icons';
 
-    let userId = localStorage.getItem('user_id');
-    if (!userId) {
-        userId = v4();
-        localStorage.setItem('user_id', userId);
-    }
+    const AUTOSAVE_INTERVAL_MS = 60000;
 
     const sessionJoined = ref(false);
     const sessionEnded = ref(false);
@@ -36,7 +32,7 @@
 
         showPlayerJoinedMessage.value = true;
 
-        setTimeout(() => {
+        playerJoinedTimeout = setTimeout(() => {
             showPlayerJoinedMessage.value = false;
         }, 1000);
     }
@@ -68,13 +64,23 @@
                     if (eventData.type === SESSION_ENDED) {
                         sessionEnded.value = true;
                     }
-
-                    console.log(event.data);
                 }
             }
         },
         immediate: false,
     });
+
+    let intervalAutosaveTimeout: NodeJS.Timeout | null = null;
+
+    function intervalAutoSave() {
+        if (!activeSession.value) return;
+
+        intervalAutosaveTimeout = setTimeout(() => {
+            saveMap();
+
+            intervalAutoSave();
+        }, AUTOSAVE_INTERVAL_MS);
+    }
 
     onBeforeMount(() => {
         if (isDungeonMaster.value) return;
@@ -82,8 +88,13 @@
         open();
     });
 
+    onBeforeUnmount(() => {
+        if (intervalAutosaveTimeout) {
+            clearTimeout(intervalAutosaveTimeout);
+        }
 
-    onBeforeUnmount(() => close());
+        close();
+    });
 
     const vueFlow = useVueFlow();
 
@@ -105,11 +116,12 @@
     }
 
     async function populateNodesAndEdgesFromMap(map: Map) {
-        nodes.value = map.nodes.map((node: any) => ({
-            id: node.id.toString(),
+        edges.value = [];
+        nodes.value = map.nodes.map((node: MapNode) => ({
+            id: node.id,
             position: {
-                x: node.position_x,
-                y: node.position_y,
+                x: node.positionX,
+                y: node.positionY,
             },
             type: 'custom',
             data: { icon: node.icon, explored: node.explored, isOrigin: node.isOrigin },
@@ -117,10 +129,10 @@
 
         await nextTick();
 
-        edges.value = map.edges.map((edge: any) => ({
-            id: edge.id ?? `${ edge.source_id }->${ edge.target_id }`,
-            source: edge.source_id.toString(),
-            target: edge.target_id.toString(),
+        edges.value = map.edges.map((edge: MapEdge) => ({
+            id: edge.id ?? `${ edge.sourceId }->${ edge.targetId }`,
+            source: edge.sourceId.toString(),
+            target: edge.targetId.toString(),
         }));
     }
 
@@ -129,16 +141,16 @@
             name: map!.name,
             nodes: nodes.value.map(node => ({
                 id: node.id,
-                position_x: Math.round(node.position.x),
-                position_y: Math.round(node.position.y),
+                positionX: Math.round(node.position.x),
+                positionY: Math.round(node.position.y),
                 icon: node.data.icon,
                 explored: node.data.explored,
                 isOrigin: node.data.isOrigin,
             })),
             edges: edges.value.map(edge => ({
                 id: edge.id,
-                source_id: edge.source,
-                target_id: edge.target,
+                sourceId: edge.source,
+                targetId: edge.target,
             })),
         });
 
@@ -153,16 +165,16 @@
             name: map!.name,
             nodes: accessibleNodes.map(node => ({
                 id: node.id,
-                position_x: Math.round(node.position.x),
-                position_y: Math.round(node.position.y),
+                positionX: Math.round(node.position.x),
+                positionY: Math.round(node.position.y),
                 icon: node.data.icon,
                 explored: node.data.explored,
                 isOrigin: node.data.isOrigin,
             })),
             edges: accessibleEdges.map(edge => ({
                 id: edge.id,
-                source_id: Number(edge.source),
-                target_id: Number(edge.target),
+                sourceId: edge.source,
+                targetId: edge.target,
             })),
         });
 
@@ -175,7 +187,7 @@
         if (!isDungeonMaster.value) return;
 
         vueFlow.addNodes({
-            id: (Math.floor(Math.random() * 1000)).toString(),
+            id: v4(),
             position: {
                 x: Math.round(window.innerWidth / 2),
                 y: 200,
@@ -233,11 +245,13 @@
     function startSession() {
         startSessionState.value = useAsyncState<string>(() => $fetch(
             '/api/sessions',
-            { method: 'post', body: { map_id: mapId, created_by_id: userId } },
+            { method: 'post', body: { map_id: mapId } },
         ).then((res) => {
             open();
 
             activeSession.value = true;
+
+            intervalAutoSave();
 
             return res;
         }));
@@ -247,6 +261,10 @@
         close();
 
         activeSession.value = false;
+
+        if (intervalAutosaveTimeout) {
+            clearTimeout(intervalAutosaveTimeout);
+        }
     }
 
     async function copySessionLink() {
