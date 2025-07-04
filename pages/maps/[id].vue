@@ -3,11 +3,12 @@
     import CustomNode from '~/components/CustomNode.vue';
     import { MiniMap } from '@vue-flow/minimap';
     import { Background } from '@vue-flow/background';
-    import type {Map, MapEdge, MapNode} from '~/utils/services/maps';
+    import { Map, type MapEdge, type MapNode } from '~/utils/services/maps';
     import { type AsyncState, useAsyncState } from '~/utils/services';
     import { v4 } from 'uuid';
-    import { PLAYER_JOINED_MESSAGE, PLAYER_LEFT_MESSAGE } from '~/utils';
     import { Controls } from '@vue-flow/controls';
+    import { PeerInfo, PublishedData } from "~/utils";
+    import { z } from "zod";
 
     const route = useRoute();
     const router = useRouter();
@@ -37,31 +38,31 @@
         }, 1000);
     }
 
-    const currentPlayerCount = ref(0);
+    const currentPlayersInfo = ref<PeerInfo[]>([]);
 
     const { open, close, send } = useWebSocket(`/api/ws/players/${ mapId }`, {
         onMessage: async (ws, event) => {
-            const eventData = JSON.parse(event.data);
+            const eventData = PublishedData.parse(JSON.parse(event.data));
 
-            if (eventData.type === PLAYER_JOINED_MESSAGE) {
-                currentPlayerCount.value = eventData.player_count;
+            if (eventData.type === MessageType.PLAYER_JOINED) {
+                currentPlayersInfo.value = z.array(PeerInfo).parse(eventData.data);
 
                 triggerPlayerJoinedMessage();
-            } else if (eventData.type === PLAYER_LEFT_MESSAGE) {
-                currentPlayerCount.value = eventData.player_count - 1;
+            } else if (eventData.type === MessageType.PLAYER_LEFT) {
+                currentPlayersInfo.value = z.array(PeerInfo).parse(eventData.data);
             }
 
             if (isDungeonMaster.value) {
-                if (eventData.type === PLAYER_JOINED_MESSAGE) {
+                if (eventData.type === MessageType.PLAYER_JOINED) {
                     saveMap();
                 }
             } else {
                 try {
-                    await populateNodesAndEdgesFromMap(eventData);
+                    await populateNodesAndEdgesFromMap(Map.parse(eventData.data));
 
                     sessionJoined.value = true;
                 } catch {
-                    if (eventData.type === SESSION_ENDED) {
+                    if (eventData.type === MessageType.SESSION_ENDED) {
                         sessionEnded.value = true;
                     }
                 }
@@ -80,10 +81,24 @@
         }, AUTOSAVE_INTERVAL_MS);
     }
 
+    const playerName = ref('');
+    const showPlayerNameForm = ref(false);
+
+    function joinSession() {
+        open();
+        send(JSON.stringify({
+            type: MessageType.PLAYER_JOINED,
+            data: { name: playerName.value },
+        }));
+
+        showPlayerNameForm.value = false;
+    }
+
     onBeforeMount(() => {
         if (isDungeonMaster.value) return;
 
-        open();
+        if (playerName.value) joinSession();
+        else showPlayerNameForm.value = true;
     });
 
     onBeforeUnmount(() => {
@@ -159,7 +174,7 @@
         const accessibleNodes = nodes.value.filter(
             n => n.data.explored || accessibleEdges.some(e => [e.target, e.source].includes(n.id)));
 
-        const playerPayload = JSON.stringify({
+        const playerPayload = {
             name: map!.name,
             nodes: accessibleNodes.map(node => ({
                 id: node.id,
@@ -174,9 +189,12 @@
                 sourceId: edge.source,
                 targetId: edge.target,
             })),
-        });
+        };
 
-        send(playerPayload);
+        send(JSON.stringify({
+            type: MessageType.MAP_UPDATE,
+            data: playerPayload,
+        }));
 
         localStorage.setItem(mapId, storagePayload);
     }
@@ -246,6 +264,7 @@
             { method: 'post', body: { map_id: mapId } },
         ).then((res) => {
             open();
+            saveMap();
 
             activeSession.value = true;
 
@@ -259,6 +278,7 @@
         close();
 
         activeSession.value = false;
+        currentPlayersInfo.value = [];
 
         if (intervalAutosaveTimeout) {
             clearTimeout(intervalAutosaveTimeout);
@@ -336,7 +356,15 @@
 </script>
 
 <template>
-    <div v-if="!sessionJoined" class="flex justify-center items-center w-full h-full gap-4">
+    <div v-if="showPlayerNameForm" class="flex justify-center items-center w-full h-full gap-4">
+        <form class="flex flex-col !w-96 gap-4" @submit.prevent="joinSession">
+            <UFormField label="Enter Your Name:">
+                <UInput v-model="playerName" class="w-full" required/>
+            </UFormField>
+            <UButton label="Join Session" type="submit"/>
+        </form>
+    </div>
+    <div v-else-if="!sessionJoined" class="flex justify-center items-center w-full h-full gap-4">
         <div class="flex flex-col items-center gap-4">
             <UIcon class="animate-spin" name="gg:spinner" size="60"/>
             <p>Joining Session...</p>
@@ -359,6 +387,7 @@
         :nodes-draggable="isDungeonMaster"
         connect-on-click
         fit-view-on-init
+        snap-to-grid
     >
         <Background/>
         <Panel position="top-center">
@@ -422,13 +451,23 @@
                             label="Copy Share Link"
                             @click="copySessionLink"
                         />
-                        <p class="font-medium text-center">
-                            Num Players: {{ Math.max(currentPlayerCount - 1, 0) }}
-                        </p>
+                        <template v-if="currentPlayersInfo.length">
+                            <p class="font-medium text-center">
+                                Players:
+                            </p>
+                            <ul class="flex flex-col gap-2">
+                                <li
+                                    v-for="(player, index) in currentPlayersInfo"
+                                    :key="index"
+                                    class="p-1 border rounded-lg text-center"
+                                >
+                                    {{ player.name }}
+                                </li>
+                            </ul>
+                        </template>
                     </div>
                 </Transition>
             </template>
-
 
             <Transition mode="out-in" name="fade">
                 <p v-if="showPlayerJoinedMessage" class="text-center">New Player Joined!</p>
