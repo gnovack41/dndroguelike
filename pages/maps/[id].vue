@@ -25,6 +25,7 @@
     const showPlayerJoinedMessage = ref(false);
 
     let playerJoinedTimeout: NodeJS.Timeout | null = null;
+    let playerJoiningSessionTimeOut: NodeJS.Timeout | null = null;
 
     function triggerPlayerJoinedMessage() {
         if (playerJoinedTimeout) {
@@ -56,16 +57,17 @@
                 if (eventData.type === MessageType.PLAYER_JOINED) {
                     saveMap();
                 }
-            } else {
-                try {
-                    await populateNodesAndEdgesFromMap(Map.parse(eventData.data));
-
-                    sessionJoined.value = true;
-                } catch {
-                    if (eventData.type === MessageType.SESSION_ENDED) {
-                        sessionEnded.value = true;
-                    }
+            } else if (eventData.type === MessageType.MAP_UPDATE) {
+                if (playerJoiningSessionTimeOut) {
+                    clearTimeout(playerJoiningSessionTimeOut);
+                    playerJoiningSessionTimeOut = null;
                 }
+
+                await populateNodesAndEdgesFromMap(Map.parse(eventData.data));
+
+                sessionJoined.value = true;
+            } else if (eventData.type === MessageType.SESSION_ENDED) {
+                sessionEnded.value = true;
             }
         },
         immediate: false,
@@ -92,6 +94,12 @@
         }));
 
         showPlayerNameForm.value = false;
+
+        if (playerJoiningSessionTimeOut) {
+            clearTimeout(playerJoiningSessionTimeOut);
+        }
+
+        playerJoiningSessionTimeOut = setTimeout(() => sessionEnded.value = true, 10000);
     }
 
     onBeforeMount(() => {
@@ -202,17 +210,21 @@
     async function addNode(icon: string) {
         if (!isDungeonMaster.value) return;
 
+        const lastAddedNode = nodes.value[nodes.value.length - 1];
+
         vueFlow.addNodes({
             id: v4(),
             position: {
-                x: Math.round(window.innerWidth / 2),
-                y: 200,
+                x: lastAddedNode ? lastAddedNode.position.x + 100 : 0,
+                y: lastAddedNode ? lastAddedNode.position.y : 0,
             },
             data: { icon, explored: nodes.value.length === 0, isOrigin: nodes.value.length === 0 },
             type: 'custom',
         });
 
         await nextTick();
+
+        if (nodes.value.length === 1) await vueFlow.fitView();
 
         saveMap();
     }
@@ -364,17 +376,17 @@
             <UButton label="Join Session" type="submit"/>
         </form>
     </div>
-    <div v-else-if="!sessionJoined" class="flex justify-center items-center w-full h-full gap-4">
-        <div class="flex flex-col items-center gap-4">
-            <UIcon class="animate-spin" name="gg:spinner" size="60"/>
-            <p>Joining Session...</p>
-        </div>
-    </div>
     <div v-else-if="sessionEnded" class="flex justify-center items-center w-full h-full gap-4">
         <div class="flex flex-col items-center gap-4">
             <UIcon name="gg:smile-sad" size="60"/>
             <p>Session Ended</p>
             <UButton icon="gg:home-alt" label="Home" @click="router.push(`/`)"/>
+        </div>
+    </div>
+    <div v-else-if="!sessionJoined" class="flex justify-center items-center w-full h-full gap-4">
+        <div class="flex flex-col items-center gap-4">
+            <UIcon class="animate-spin" name="gg:spinner" size="60"/>
+            <p>Joining Session...</p>
         </div>
     </div>
     <VueFlow
@@ -451,22 +463,27 @@
                             label="Copy Share Link"
                             @click="copySessionLink"
                         />
-                        <template v-if="currentPlayersInfo.length">
-                            <p class="font-medium text-center">
-                                Players:
-                            </p>
-                            <ul class="flex flex-col gap-2">
-                                <li
-                                    v-for="(player, index) in currentPlayersInfo"
-                                    :key="index"
-                                    class="p-1 border rounded-lg text-center"
-                                >
-                                    {{ player.name }}
-                                </li>
-                            </ul>
-                        </template>
                     </div>
                 </Transition>
+            </template>
+
+            <template v-if="currentPlayersInfo.length">
+                <p class="font-medium text-center">
+                    Players:
+                </p>
+                <ul class="flex flex-col gap-2">
+                    <li
+                        v-for="player in currentPlayersInfo"
+                        :key="player.id"
+                        class="p-1 border rounded-lg text-center bg-black"
+                        :class="{ 'order-first': player.name === playerName }"
+                    >
+                        <p class="font-medium">
+                            {{ player.name }}
+                            <span v-if="player.name === playerName"> (You)</span>
+                        </p>
+                    </li>
+                </ul>
             </template>
 
             <Transition mode="out-in" name="fade">

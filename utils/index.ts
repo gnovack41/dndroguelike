@@ -13,8 +13,9 @@ export enum MessageType {
 }
 
 export const PeerInfo = z.object({
+    id: z.string().optional(),
     name: z.string(),
-})
+});
 
 export type PeerInfo = z.infer<typeof PeerInfo>;
 
@@ -34,7 +35,7 @@ export type MessageData = z.infer<typeof MessageData>;
 
 export const PublishedData = z.object({
     type: z.nativeEnum(MessageType),
-    data: z.union([Map, z.array(PeerInfo)]),
+    data: z.union([Map, z.array(PeerInfo)]).nullable(),
 });
 
 export type PublishedData = z.infer<typeof PublishedData>;
