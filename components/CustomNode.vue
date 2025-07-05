@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-    import {type FlowEvents, Handle, type NodeProps, Position} from '@vue-flow/core';
-    import {NodeToolbar} from '@vue-flow/node-toolbar';
+    import { type FlowEvents, Handle, type NodeProps, Position } from '@vue-flow/core';
+    import { NodeToolbar } from '@vue-flow/node-toolbar';
 
     defineProps<NodeProps<{
         isOrigin?: boolean,
