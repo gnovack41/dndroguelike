@@ -1,7 +1,3 @@
-<script lang="ts" setup>
-
-</script>
-
 <template>
     <div class="flex flex-col gap-4">
         <div class="flex w-full items-center justify-center h-16 bg-gray-600">
@@ -12,7 +8,7 @@
                 </h1></a>
             </button>
         </div>
-        <div class="h-[90vh] px-14">
+        <div class="h-[90vh] md:px-14 w-full">
             <slot/>
         </div>
     </div>
