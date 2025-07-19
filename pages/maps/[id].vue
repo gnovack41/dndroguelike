@@ -152,8 +152,8 @@
 
         edges.value = map.edges.map((edge: MapEdge) => ({
             id: edge.id ?? `${ edge.sourceId }->${ edge.targetId }`,
-            source: edge.sourceId.toString(),
-            target: edge.targetId.toString(),
+            source: edge.sourceId,
+            target: edge.targetId,
         }));
     }
 
@@ -403,41 +403,53 @@
     >
         <Background/>
         <Panel position="top-center">
-            <UButton label="Back to Maps" @click="router.push(`/maps`)"/>
+            <UButton label="Back to Maps" class="max-md:hidden" @click="router.push(`/maps`)"/>
         </Panel>
 
-        <Panel v-if="isDungeonMaster" class="flex flex-col gap-6 max-h-[90%] w-28 overflow-y-scroll"
-               position="top-left">
-            <div v-for="group in iconGroups" :key="group.name" class="flex flex-col gap-2">
-                <h3 class="font-semibold">{{ group.name }} </h3>
+        <Panel
+            class="flex flex-col gap-6 max-h-[90%] w-fit"
+            position="top-left"
+        >
+            <UButton label="Back to Maps" class="md:hidden" @click="router.push(`/maps`)"/>
 
-                <div class="grid grid-rows-5 grid-cols-2 gap-4 items-center">
-                    <UButton v-for="icon in group.icons" :key="icon" class="aspect-square flex justify-center"
-                             color="neutral"
-                             @click="addNode(icon)">
-                        <UIcon :name="icon" size="30"/>
-                    </UButton>
+            <div v-if="isDungeonMaster" class="flex flex-col gap-6 max-h-[90%] w-fit overflow-y-auto">
+                <div v-for="group in iconGroups" :key="group.name" class="flex flex-col w-fit gap-2">
+                    <h3 class="font-semibold">{{ group.name }} </h3>
+
+                    <div class="grid md:grid-cols-2 gap-4 items-center w-fit">
+                        <UButton
+                            v-for="icon in group.icons"
+                            :key="icon"
+                            class="aspect-square flex w-12 justify-center"
+                            color="neutral"
+                            @click="addNode(icon)"
+                        >
+                            <UIcon :name="icon" size="30"/>
+                        </UButton>
+                    </div>
                 </div>
+
+                <form class="flex flex-col gap-2 md:w-24 max-md:max-w-12" @submit.prevent="updateCustomIcons">
+                    <h3 class="font-semibold">Custom</h3>
+
+                    <div class="grid grid-cols-2 gap-4 items-center">
+                        <UButton
+                            v-for="icon in customIcons" :key="icon"
+                            class="aspect-square flex justify-center"
+                            color="neutral"
+                            @click="addNode(icon)"
+                        >
+                            <UIcon :name="icon" size="30"/>
+                        </UButton>
+                    </div>
+
+                    <UFormField label="Iconify Name">
+                        <UInput v-model="newIconName" required/>
+                    </UFormField>
+
+                    <UButton label="Add" type="submit"/>
+                </form>
             </div>
-
-            <form class="flex flex-col gap-2" @submit.prevent="updateCustomIcons">
-                <h3 class="font-semibold">Custom</h3>
-
-                <div class="grid grid-cols-2 gap-4 items-center">
-                    <UButton v-for="icon in customIcons" :key="icon" class="aspect-square flex justify-center"
-                             color="neutral"
-                             @click="addNode(icon)">
-                        <UIcon :name="icon" size="30"/>
-                    </UButton>
-                </div>
-
-                <UFormField label="Iconify Name">
-                    <UInput v-model="newIconName" required/>
-                </UFormField>
-
-                <UButton label="Add" type="submit"/>
-            </form>
-
         </Panel>
 
         <Panel class="flex flex-col gap-1 w-40" position="top-right">
