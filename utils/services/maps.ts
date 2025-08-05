@@ -29,7 +29,6 @@ export type ThinMap = z.infer<typeof ThinMap>;
 
 export const Map = z.object({
     ...ThinMap.shape,
-    name: z.string(),
     nodes: z.array(MapNode),
     edges: z.array(MapEdge),
 })
