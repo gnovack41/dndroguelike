@@ -19,10 +19,19 @@ export const MapEdge = z.object({
 
 export type MapEdge = z.infer<typeof MapEdge>;
 
-export const Map = z.object({
+export const ThinMap = z.object({
+    id: z.string(),
     name: z.string(),
+    created: z.iso.date(),
+});
+
+export type ThinMap = z.infer<typeof ThinMap>;
+
+export const Map = z.object({
+    ...ThinMap.shape,
     nodes: z.array(MapNode),
     edges: z.array(MapEdge),
 })
 
 export type Map = z.infer<typeof Map>;
+

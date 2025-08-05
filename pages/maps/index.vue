@@ -1,36 +1,50 @@
 <script lang="ts" setup>
     import MapListItem from '../../components/MapListItem.vue';
     import { v4 } from 'uuid';
+    import type { ThinMap } from "~/utils/services/maps";
 
     const ALL_MAPS_KEY = 'all_maps';
 
     const router = useRouter();
 
-    const allMaps = ref<{ id: string, name: string }[]>([]);
+    const allMaps = ref<ThinMap[]>([]);
 
     const allMapsString = localStorage.getItem(ALL_MAPS_KEY);
     if (allMapsString) {
         allMaps.value = JSON.parse(allMapsString);
     }
 
-    const newMapName = ref<string>();
+    const newMapName = ref<string>('');
 
     const createMapState = ref();
 
     async function createMap() {
         const newMapId = v4();
+
+        const newMapData: ThinMap = {
+            id: newMapId,
+            name: newMapName.value,
+            created: new Date().toISOString(),
+        };
+
         localStorage.setItem(ALL_MAPS_KEY, JSON.stringify([
             ...allMaps.value,
-            { 'id': newMapId, name: newMapName.value },
+            newMapData,
         ]));
 
         localStorage.setItem(newMapId, JSON.stringify({
-            name: newMapName.value,
+            ...newMapData,
             nodes: [],
             edges: [],
         }));
 
         await router.push(`/maps/${ newMapId }`);
+    }
+
+    function deleteMap(mapId: string) {
+        allMaps.value = allMaps.value.filter(map => map.id !== mapId);
+        localStorage.setItem(ALL_MAPS_KEY, JSON.stringify(allMaps.value));
+        localStorage.removeItem(mapId);
     }
 </script>
 
@@ -53,6 +67,7 @@
                 :map="map"
                 class="cursor-pointer"
                 @click="router.push(`/maps/${map.id}`)"
+                @delete="deleteMap(map.id)"
             />
         </div>
     </div>

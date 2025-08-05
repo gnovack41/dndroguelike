@@ -159,7 +159,9 @@
 
     function saveMap() {
         const storagePayload = JSON.stringify({
+            id: mapId,
             name: map!.name,
+            created: map!.created,
             nodes: nodes.value.map(node => ({
                 id: node.id,
                 positionX: Math.round(node.position.x),
@@ -207,14 +209,14 @@
         localStorage.setItem(mapId, storagePayload);
     }
 
-    async function addNode(icon: string) {
+    async function addNode(icon: string, position?: { x: number, y: number }) {
         if (!isDungeonMaster.value) return;
 
         const lastAddedNode = nodes.value[nodes.value.length - 1];
 
         vueFlow.addNodes({
             id: v4(),
-            position: {
+            position: position ?? {
                 x: lastAddedNode ? lastAddedNode.position.x + 100 : 0,
                 y: lastAddedNode ? lastAddedNode.position.y : 0,
             },
@@ -309,6 +311,15 @@
         node.data.explored = !node.data.explored;
 
         saveMap();
+    }
+
+    function handleNewNodeDragEnd(icon: string, position: { x: number, y: number }) {
+        const flowPosition = vueFlow.screenToFlowCoordinate({
+            x: position.x,
+            y: position.y,
+        });
+
+        addNode(icon, flowPosition);
     }
 
     const combatIcons = [
@@ -417,15 +428,13 @@
                     <h3 class="font-semibold">{{ group.name }} </h3>
 
                     <div class="grid md:grid-cols-2 gap-4 items-center w-fit">
-                        <UButton
+                        <MapNodeButton
                             v-for="icon in group.icons"
                             :key="icon"
-                            class="aspect-square flex w-12 justify-center"
-                            color="neutral"
+                            :icon="icon"
                             @click="addNode(icon)"
-                        >
-                            <UIcon :name="icon" size="30"/>
-                        </UButton>
+                            @drag-end="handleNewNodeDragEnd(icon, $event)"
+                        />
                     </div>
                 </div>
 
@@ -433,14 +442,13 @@
                     <h3 class="font-semibold">Custom</h3>
 
                     <div class="grid grid-cols-2 gap-4 items-center">
-                        <UButton
-                            v-for="icon in customIcons" :key="icon"
-                            class="aspect-square flex justify-center"
-                            color="neutral"
+                        <MapNodeButton
+                            v-for="icon in customIcons"
+                            :key="icon"
+                            :icon="icon"
                             @click="addNode(icon)"
-                        >
-                            <UIcon :name="icon" size="30"/>
-                        </UButton>
+                            @drag-end="handleNewNodeDragEnd(icon, $event)"
+                        />
                     </div>
 
                     <UFormField label="Iconify Name">
