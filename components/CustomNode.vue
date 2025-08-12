@@ -13,12 +13,17 @@
 
 <template>
     <NodeToolbar :position="Position.Right">
-        <UButton :label="data.explored ? 'Unexplore' : 'Explore'" color="neutral" @click="$emit('explored', id)"/>
+        <UButton
+            v-if="!data.isOrigin"
+            :label="data.explored ? 'Unexplore' : 'Explore'"
+            color="neutral"
+            @click="$emit('explored', id)"
+        />
     </NodeToolbar>
 
     <Handle :connectable="connectable" :position="Position.Top" type="source"/>
     <div class="flex flex-col justify-center gap-1">
-        <div :class="{ '!bg-green-600': data.explored}" class="bg-blue-400 rounded-full py-3 px-4">
+        <div :class="{ 'bg-green-600': data.explored}" class="bg-blue-400 rounded-full py-3 px-4">
             <UIcon v-if="data.icon" :name="data.icon" class="text-black"/>
         </div>
         <p v-if="data.isOrigin" class="text-sm text-center">Start</p>
