@@ -27,14 +27,14 @@ export const MapInfo = z.object({
 export type MapInfo = z.infer<typeof MapInfo>;
 
 export const MessageData = z.object({
-    type: z.nativeEnum(MessageType),
+    type: z.enum(MessageType),
     data: z.union([Map, PeerInfo]),
-})
+});
 
 export type MessageData = z.infer<typeof MessageData>;
 
 export const PublishedData = z.object({
-    type: z.nativeEnum(MessageType),
+    type: z.enum(MessageType),
     data: z.union([Map, z.array(PeerInfo)]).nullable(),
 });
 

@@ -184,8 +184,10 @@
         const accessibleNodes = nodes.value.filter(
             n => n.data.explored || accessibleEdges.some(e => [e.target, e.source].includes(n.id)));
 
-        const playerPayload = {
+        const playerPayload: Map = {
+            id: mapId,
             name: map!.name,
+            created: map!.created,
             nodes: accessibleNodes.map(node => ({
                 id: node.id,
                 positionX: Math.round(node.position.x),
