@@ -7,8 +7,6 @@ export async function useSerializer<T>(
 ): Promise<T> {
     const result = await readValidatedBody(event, body => serializer.safeParse(body));
 
-    console.log(result);
-
     if (!result.data) throw result.error.issues;
 
     return result.data as T;
